@@ -96,6 +96,11 @@
   transform: translateY(0) scale(1);
 }
 
+/* 拖动时勿过渡 left/top，避免跟手发飘 */
+.ai-card.ai-dragging {
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
 .ai-card-header {
   display: flex;
   align-items: center;
@@ -104,6 +109,14 @@
   padding: 0.85rem 1rem;
   border-bottom: 1px solid #e2e8f0;
   background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.ai-card.ai-dragging .ai-card-header {
+  cursor: grabbing;
 }
 
 .ai-card-title {
@@ -120,6 +133,7 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  touch-action: manipulation;
   font-size: 1.25rem;
   line-height: 1;
   color: #64748b;

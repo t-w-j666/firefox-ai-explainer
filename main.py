@@ -43,12 +43,8 @@ class ExplainBody(BaseModel):
     context: str = Field(default="", max_length=MAX_CONTEXT_CHARS)
 
 
-LEXICAL_SYSTEM = """你是英语教学助手，采用语料块学习法（Lexical Approach）。
-对用户给出的词句，用清晰小节输出：
-1) 含义（简明）
-2) 常见搭配（collocations）
-3) 地道例句（2–3 条）
-使用用户提供的上下文帮助消歧，但不要编造文中未出现的虚假来源。"""
+LEXICAL_SYSTEM = """##角色: 你现在是一名“去术语化”的资深技术教练，擅长将复杂的知识点拆解为底层的逻辑链路，核心能力是能够把知识的边界描述清晰。
+##输出格式为纯文本输出，不要使用markdown格式"""
 
 
 def _build_user_prompt(text: str, context: str) -> str:

@@ -33,6 +33,66 @@
   let shadowRoot = null;
   let cssLoadedPromise = null;
 
+  /**
+   * 拖动解释卡片：仅在标题栏按下左键拖动（关闭按钮除外），用 window 级监听避免滑出 Shadow DOM 后丢事件。
+   */
+  function wireCardDrag(card, header) {
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    function clamp(n, lo, hi) {
+      return Math.min(Math.max(n, lo), hi);
+    }
+
+    function onMove(ev) {
+      if (!dragging) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const cw = card.offsetWidth;
+      const ch = card.offsetHeight;
+      let left = ev.clientX - offsetX;
+      let top = ev.clientY - offsetY;
+      left = clamp(left, 8, Math.max(8, vw - cw - 8));
+      top = clamp(top, 8, Math.max(8, vh - ch - 8));
+      card.style.left = `${left}px`;
+      card.style.top = `${top}px`;
+    }
+
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      card.classList.remove("ai-dragging");
+      window.removeEventListener("pointermove", onMove, true);
+      window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onUp, true);
+    }
+
+    header.addEventListener(
+      "pointerdown",
+      (ev) => {
+        if (card.dataset.open !== "true") return;
+        if (ev.button !== 0) return;
+        const close = header.querySelector(".ai-close");
+        if (close && (ev.target === close || close.contains(/** @type {Node} */ (ev.target)))) {
+          return;
+        }
+
+        ev.preventDefault();
+        dragging = true;
+        card.classList.add("ai-dragging");
+        const r = card.getBoundingClientRect();
+        offsetX = ev.clientX - r.left;
+        offsetY = ev.clientY - r.top;
+
+        window.addEventListener("pointermove", onMove, true);
+        window.addEventListener("pointerup", onUp, true);
+        window.addEventListener("pointercancel", onUp, true);
+      },
+      true,
+    );
+  }
+
   let debounceTimer = 0;
   /** @type {{ text: string; context: string; rect: DOMRect } | null} */
   let pendingExplain = null;
@@ -113,7 +173,7 @@
         <div class="ai-selection-preview" id="aiSelPreview"></div>
         <div class="ai-body ai-loading" id="aiBody">连接后端并生成解释中…</div>
         <div class="ai-error" id="aiError" hidden></div>
-        <div class="ai-footer-hint">流式输出 · 点击空白区域关闭</div>
+        <div class="ai-footer-hint">流式输出 · 拖动标题栏移动 · 点击空白关闭</div>
       </section>
     `;
     shadowRoot.appendChild(root);
@@ -121,7 +181,10 @@
     const fab = shadowRoot.getElementById("aiFab");
     const overlay = shadowRoot.getElementById("aiOverlay");
     const card = shadowRoot.getElementById("aiCard");
+    const header = shadowRoot.querySelector(".ai-card-header");
     const closeBtn = shadowRoot.getElementById("aiClose");
+
+    if (card && header) wireCardDrag(card, header);
 
     fab.addEventListener("click", (ev) => {
       ev.preventDefault();
