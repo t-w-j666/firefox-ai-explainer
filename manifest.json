@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "AI Text Explainer",
+  "version": "1.0.0",
+  "description": "划选网页文本，通过本地 FastAPI 后端以 SSE 流式获取 LLM 解释（Lexical Approach）。",
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ai-text-explainer@local",
+      "strict_min_version": "109.0"
+    }
+  },
+
+  "permissions": ["storage"],
+
+  "background": {
+    "scripts": ["background.js"]
+  },
+
+  "host_permissions": [
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*",
+    "<all_urls>"
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

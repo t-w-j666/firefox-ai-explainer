@@ -1,0 +1,240 @@
+/* 仅在 Shadow DOM 内生效，与页面 CSS 隔离 */
+
+:host {
+  all: initial;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.ai-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+}
+
+.ai-root * {
+  pointer-events: auto;
+}
+
+.ai-fab {
+  position: fixed;
+  z-index: 2147483647;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.ai-fab[data-visible="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ai-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.45);
+}
+
+.ai-fab:active {
+  transform: translateY(0);
+}
+
+.ai-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.ai-overlay[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ai-card {
+  position: fixed;
+  z-index: 2147483647;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px) scale(0.98);
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+
+.ai-card[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.ai-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+}
+
+.ai-card-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.ai-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #64748b;
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ai-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.ai-selection-preview {
+  padding: 0.65rem 1rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  border-bottom: 1px solid #f1f5f9;
+  max-height: 3.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-selection-preview strong {
+  color: #334155;
+}
+
+.ai-body {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1e293b;
+}
+
+.ai-body.ai-loading {
+  color: #94a3b8;
+}
+
+.ai-error {
+  padding: 0 1rem 1rem;
+  font-size: 0.8125rem;
+  color: #b91c1c;
+}
+
+.ai-footer-hint {
+  padding: 0.5rem 1rem 0.75rem;
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  border-top: 1px solid #f1f5f9;
+}
+
+.ai-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: #2563eb;
+  animation: ai-blink 1s step-end infinite;
+}
+
+@keyframes ai-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .ai-card {
+    background: #1e293b;
+    color: #e2e8f0;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+
+  .ai-card-header {
+    border-bottom-color: #334155;
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  }
+
+  .ai-card-title {
+    color: #f1f5f9;
+  }
+
+  .ai-close {
+    color: #94a3b8;
+  }
+
+  .ai-close:hover {
+    background: #334155;
+    color: #f8fafc;
+  }
+
+  .ai-selection-preview {
+    border-bottom-color: #334155;
+    color: #94a3b8;
+  }
+
+  .ai-selection-preview strong {
+    color: #cbd5e1;
+  }
+
+  .ai-body {
+    color: #e2e8f0;
+  }
+
+  .ai-body.ai-loading {
+    color: #64748b;
+  }
+
+  .ai-footer-hint {
+    border-top-color: #334155;
+    color: #64748b;
+  }
+}
