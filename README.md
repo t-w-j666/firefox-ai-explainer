@@ -191,9 +191,3 @@ browser.storage.local.set({ apiBaseUrl: "http://127.0.0.1:9000" });
 | **503** | 未配置 `DEEPSEEK_API_KEY`（或未配置兼容的 `OPENAI_API_KEY`）。 |
 | **样式未更新** | `popup.css` 在会话中可能被缓存；重新加载扩展或新开标签页后再试。 |
 | **长时间无响应** | 前端约 **120s** 超时；确认本机后端已启动且防火墙未拦截端口。 |
-
----
-
-## License
-
-若你将本仓库公开到 GitHub，请自行补充许可证文件（例如 `LICENSE`）并在此处替换本节说明。
