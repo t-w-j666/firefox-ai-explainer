@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Explainer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 320px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+      color: #fff;
+    }
+    .header h1 {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      flex: 1;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+    .status-dot.ok { background: #22c55e; }
+    .status-dot.fail { background: #ef4444; }
+    .status-dot.loading { background: #f59e0b; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.4; } }
+    .body { padding: 0.75rem 1rem 0; }
+    .field { margin-bottom: 0.65rem; }
+    label {
+      display: block;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: #64748b;
+      margin-bottom: 0.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    input {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.8125rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      color: #1e293b;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.12); }
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+    button {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    .btn-secondary:hover { background: #cbd5e1; }
+    .status-msg {
+      font-size: 0.75rem;
+      color: #16a34a;
+      min-height: 1.2em;
+      margin-bottom: 0.5rem;
+      visibility: hidden;
+    }
+    .status-msg.visible { visibility: visible; }
+    .status-msg.error { color: #dc2626; }
+    .footer {
+      border-top: 1px solid #e2e8f0;
+      padding: 0.6rem 1rem;
+      text-align: center;
+    }
+    .footer a {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .footer a:hover { color: #2563eb; text-decoration: underline; }
+    .model-hint {
+      font-size: 0.6875rem;
+      color: #94a3b8;
+      margin-top: -0.35rem;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="status-dot" id="statusDot"></span>
+    <h1>AI Text Explainer</h1>
+  </div>
+
+  <div class="body">
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>API Base URL</label>
+      <input type="url" id="apiBaseUrl" placeholder="https://api.deepseek.com" />
+    </div>
+    <div class="field">
+      <label>模型名称</label>
+      <input type="text" id="modelName" placeholder="deepseek-chat" />
+    </div>
+    <div class="model-hint" id="modelHint"></div>
+
+    <div class="status-msg" id="statusMsg"></div>
+
+    <div class="actions">
+      <button class="btn-primary" id="saveBtn">保存</button>
+      <button class="btn-secondary" id="testBtn">测试</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a id="openOptions">打开完整设置 →</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

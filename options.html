@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Text Explainer - 设置</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      padding: 2rem 1rem;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      color: #0f172a;
+    }
+    .subtitle {
+      font-size: 0.8125rem;
+      color: #64748b;
+      margin-bottom: 1.75rem;
+    }
+    .field {
+      margin-bottom: 1.25rem;
+    }
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.35rem;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-bottom: 0.4rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.875rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #1e293b;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+    }
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-top: 1.5rem;
+    }
+    button {
+      padding: 0.6rem 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      font-size: 0.8125rem;
+      color: #16a34a;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .status.visible {
+      visibility: visible;
+      opacity: 1;
+    }
+    .status.error {
+      color: #dc2626;
+    }
+    .test-result {
+      margin-top: 2rem;
+      padding: 1rem;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      display: none;
+    }
+    .test-result.visible { display: block; }
+    .test-result h3 {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #334155;
+    }
+    .test-result pre {
+      font-size: 0.75rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #475569;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .test-result .test-error {
+      color: #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <h1>AI Text Explainer</h1>
+  <p class="subtitle">配置大模型 API，保存后即可使用。无需启动 Python 后端。</p>
+
+  <div class="field">
+    <label for="apiKey">API Key</label>
+    <div class="hint">DeepSeek、OpenAI 或其他兼容服务的 API 密钥</div>
+    <input type="password" id="apiKey" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+  </div>
+
+  <div class="field">
+    <label for="apiBaseUrl">API Base URL</label>
+    <div class="hint">兼容 OpenAI 的 API 地址，末尾不要加 /v1</div>
+    <input type="url" id="apiBaseUrl" placeholder="https://api.deepseek.com" value="https://api.deepseek.com" />
+  </div>
+
+  <div class="field">
+    <label for="modelName">模型名称</label>
+    <div class="hint">使用的模型标识符</div>
+    <input type="text" id="modelName" placeholder="deepseek-chat" value="deepseek-chat" />
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" id="saveBtn">保存</button>
+    <button id="testBtn" style="background:#e2e8f0;color:#475569;">测试连接</button>
+    <span class="status" id="statusMsg">✓ 已保存</span>
+  </div>
+
+  <div class="test-result" id="testResult">
+    <h3>测试结果</h3>
+    <pre id="testOutput"></pre>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

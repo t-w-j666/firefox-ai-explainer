@@ -2,13 +2,23 @@
   "manifest_version": 3,
   "name": "AI Text Explainer",
   "version": "1.0.0",
-  "description": "划选网页文本，通过本地 FastAPI 后端以 SSE 流式获取 LLM 解释（Lexical Approach）。",
+  "description": "划选网页文本，直接调用大模型 API 以 SSE 流式获取 LLM 解释（Lexical Approach）。无需启动 Python 后端。",
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Text Explainer"
+  },
 
   "browser_specific_settings": {
     "gecko": {
       "id": "ai-text-explainer@local",
       "strict_min_version": "109.0"
     }
+  },
+
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
 
   "permissions": ["storage"],
@@ -18,8 +28,6 @@
   },
 
   "host_permissions": [
-    "http://127.0.0.1:8765/*",
-    "http://localhost:8765/*",
     "<all_urls>"
   ],
 

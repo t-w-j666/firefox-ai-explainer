@@ -43,7 +43,7 @@ class ExplainBody(BaseModel):
     context: str = Field(default="", max_length=MAX_CONTEXT_CHARS)
 
 
-LEXICAL_SYSTEM = """##角色: 你现在是一名“去术语化”的资深技术教练，擅长将复杂的知识点拆解为底层的逻辑链路，核心能力是能够把知识的边界描述清晰。
+LEXICAL_SYSTEM = """##对陌生概念或者术语进行讲解，不仅要讲清楚‘是什么’，还要讲清楚‘有什么’，‘怎么用’
 ##输出格式为纯文本输出，不要使用markdown格式"""
 
 

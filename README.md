@@ -1,193 +1,121 @@
 # AI Text Explainer
 
-在 Firefox 中**划选网页文字**，通过本机 **FastAPI** 调用大模型（默认 **DeepSeek**，OpenAI 兼容接口），以 **SSE 流式**返回解释；扩展侧用 **Shadow DOM** 渲染 UI，并用 **后台脚本**转发请求，避免 GitHub 等站点 **CSP** 拦截 `localhost`。
+在 Firefox 中**划选网页文字**，直接调用大模型 API（默认 DeepSeek），以 **SSE 流式**返回解释。纯浏览器扩展，**无需启动 Python 后端**。
+
+扩展用 **Shadow DOM** 隔离 UI，通过后台脚本转发请求，避免 GitHub 等站点的 CSP 拦截。
 
 ---
 
-## 目录
+## 使用教程
 
-- [功能概览](#功能概览)
-- [架构说明](#架构说明)
-- [仓库文件说明](#仓库文件说明)
-- [环境要求](#环境要求)
-- [安装与运行](#安装与运行)
-- [配置](#配置)
-- [扩展加载与调试](#扩展加载与调试)
-- [HTTP API 约定](#http-api-约定)
-- [常见问题](#常见问题)
+### 基本操作
 
----
+1. **划选文字** — 在任意网页上用鼠标选中一个词或句子。
+2. **点击「AI 解释」按钮** — 选中文字后，选区附近会出现一个浮动按钮。
+3. **查看流式解释** — 弹出卡片后会逐字输出解释（打字机效果），无需等待完整响应。
+4. **拖动卡片** — 按住卡片**标题栏**可拖动到任意位置。
+5. **关闭卡片** — 点击右上角 **×** 或点击卡片外的遮罩层即可关闭；关闭时会自动中止正在进行的请求，不浪费 token。
 
-## 功能概览
+> 支持的交互方式：鼠标划选、键盘 Shift+方向键 划选后松键均可触发。
 
-- 划词后出现 **「AI 解释」** 浮动按钮；点击后在 **Shadow DOM** 卡片中流式展示正文（打字机效果）。
-- 提示词采用 **Lexical Approach（语料块学习法）**：含义、常见搭配、例句。
-- **标题栏可拖动**卡片；点击遮罩或关闭按钮收起。
-- 后端未启动、超时、模型错误时，前端有可读提示；关闭卡片会 **中止** 进行中的请求。
+### 典型使用场景
 
----
+| 场景 | 操作 | 预期结果 |
+|------|------|----------|
+| 阅读英文文章遇到生词 | 双击选中单词 → 点击「AI 解释」 | 获得含义、常见搭配、例句 |
+| 遇到复杂技术概念 | 选中相关段落 → 点击「AI 解释」 | 获得概念讲解、用法说明 |
+| 在 GitHub 上阅读代码文档 | 选中文字 → 点击「AI 解释」 | 正常返回解释（请求通过后台转发，绕过 CSP） |
 
-## 架构说明
+### 注意事项
 
-```text
-网页 (任意站点)
-  └── Content Script (content.js)
-        ├── 监听划选、计算按钮/卡片位置
-        ├── Shadow DOM + popup.css（样式与页面隔离）
-        └── runtime.connect ──────────────────┐
-                                             ▼
-                                   Background (background.js)
-                                             │  fetch(SSE)
-                                             ▼
-                                   本机 FastAPI (main.py)
-                                             │  LangChain ChatOpenAI
-                                             ▼
-                                   DeepSeek API（默认）
-```
-
-要点：
-
-| 层级 | 职责 |
-|------|------|
-| **content.js** | 仅负责 DOM/UI 与用户交互；**不直接 `fetch` 后端**（在 github.com 等页面会被 CSP 拦截）。 |
-| **background.js** | 在扩展上下文中发起 `POST /explain/stream`，解析 SSE，通过 Port 把 `chunk` / `error` / `done` 推回 content script。 |
-| **main.py** | CORS、校验请求体、组装 Prompt、流式调用模型，输出标准 SSE `data:` JSON。 |
-
----
-
-## 仓库文件说明
-
-仓库根目录中与项目直接相关的文件如下（不含 `.git/`、本地 `.venv/`）。
-
-| 文件 | 作用 |
-|------|------|
-| [**`manifest.json`**](manifest.json) | Firefox **Manifest V3**：扩展元数据、`permissions`、`host_permissions`、`content_scripts`、`background`、`web_accessible_resources`（供 Shadow 内加载 `popup.css`）。 |
-| [**`content.js`**](content.js) | **内容脚本**：`mouseup` / `keyup` 去抖后读取选区与矩形；注入 Shadow DOM（按钮、遮罩、卡片）；通过 **`runtime.connect('ai-explainer-sse')`** 驱动流式展示；标题栏拖动逻辑。 |
-| [**`background.js`**](background.js) | **后台脚本**：接收 content 的 `start` 消息，对 `http://127.0.0.1:8765/explain/stream`（或可配置的 `apiBaseUrl`）发起带 SSE 的 `fetch`，解析 `data:` 行并把结果 **postMessage** 回 content。 |
-| [**`popup.css`**](popup.css) | **仅用于 Shadow DOM**：浮动按钮、遮罩、卡片、暗色主题、`grab/grabbing` 等；由 content script **fetch `runtime.getURL('popup.css')`** 注入，避免污染宿主页面样式。 |
-| [**`main.py`**](main.py) | **后端**：FastAPI 应用；`POST /explain/stream` 返回 `text/event-stream`；默认 **DeepSeek**（`base_url` + `deepseek-chat`）；支持上下文长度上限与环境变量。 |
-| [**`requirements.txt`**](requirements.txt) | Python 依赖版本范围（FastAPI、Uvicorn、LangChain OpenAI、Pydantic 等）。 |
-| [**`setup_venv.ps1`**](setup_venv.ps1) | Windows：**创建 `.venv` 并 `pip install -r requirements.txt`**。 |
-| [**`setup_venv.sh`**](setup_venv.sh) | macOS / Linux：同上。 |
-| [**`.gitignore`**](.gitignore) | 忽略 `.venv/`、`__pycache__`、`.env` 等本地文件。 |
-| [**`README.md`**](README.md) | 本说明文档。 |
+- 请求超时时间为 120 秒，超时会提示。
+- 关闭卡片会立即中止请求，保证 token 不浪费。
+- 浮动按钮仅在划选有效文本且选区有可见大小时出现。
 
 ---
 
 ## 环境要求
 
-- **Python** 3.10+
-- **Firefox** 109+（MV3）
-- **DeepSeek**（或其他 OpenAI 兼容服务）的有效 API Key（默认对接 DeepSeek 官方兼容端点）
+- **Firefox** 109+（需支持 Manifest V3）
+- **DeepSeek**（或其他 OpenAI 兼容服务）的 API Key
 
 ---
 
-## 安装与运行
+## 快速开始
 
-### 1. Python 虚拟环境与依赖
+### 1. 加载 Firefox 扩展
 
-在**克隆后的仓库根目录**执行：
+1. 地址栏打开 `about:debugging#/runtime/this-firefox`
+2. 点击 **「临时加载附加组件」**
+3. 选择本仓库根目录下的 **`manifest.json`**
+4. 扩展加载成功后，右键扩展图标 → **管理扩展** → **选项**
 
-**Windows (PowerShell)**
+### 2. 在设置页面配置 API Key
 
-```powershell
-.\setup_venv.ps1
-.\.venv\Scripts\Activate.ps1
-```
+在打开的选项页面中填写：
 
-若脚本策略受限：
+- **API Key** — 你的 DeepSeek / OpenAI API 密钥
+- **API Base URL** — API 地址（默认 `https://api.deepseek.com`）
+- **模型名称** — 模型标识符（默认 `deepseek-chat`）
 
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
+点击 **保存**，然后点击 **测试连接** 验证配置是否可用。
 
-**macOS / Linux**
+### 3. 验证是否正常工作
 
-```bash
-chmod +x setup_venv.sh
-./setup_venv.sh
-source .venv/bin/activate
-```
-
-### 2. 启动后端
-
-```powershell
-# 示例：PowerShell 写入会话环境变量（推荐在系统/用户环境变量中永久配置）
-$env:DEEPSEEK_API_KEY = "<your-api-key>"
-python main.py
-```
-
-默认监听：`http://127.0.0.1:8765`
-
-- 健康检查：`GET /health`
-- 流式解释：`POST /explain/stream`
+- 访问任意网页（如 `https://example.com`）
+- 选中一段文字
+- 点击弹出的 **「AI 解释」** 按钮
+- 看到卡片中逐字输出解释即为成功
 
 ---
 
 ## 配置
 
-### 后端环境变量
+### 切换模型 / API 服务
 
-| 变量 | 说明 |
+支持任何 OpenAI 兼容接口。在选项页面修改以下字段：
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| API Key | API 密钥 | — |
+| API Base URL | 兼容 API 根路径 | `https://api.deepseek.com` |
+| 模型名称 | 模型标识符 | `deepseek-chat` |
+
+> 示例：切换到 **OpenAI** — 将 API Base URL 改为 `https://api.openai.com`，模型改为 `gpt-4o-mini`，填入你的 OpenAI API Key 即可。
+
+---
+
+## 调试与修改
+
+修改 `content.js`、`background.js`、`options.html` 或 `manifest.json` 后：
+
+1. 在 `about:debugging#/runtime/this-firefox` 找到本扩展
+2. 点击 **「重新加载」**
+3. 刷新目标网页即可看到改动生效
+
+---
+
+## 项目文件结构
+
+| 文件 | 作用 |
 |------|------|
-| `DEEPSEEK_API_KEY` | DeepSeek API Key（**优先读取**）。 |
-| `OPENAI_API_KEY` | 未设置上一项时作为密钥回退（兼容其他 OpenAI 兼容服务商）。 |
-| `DEEPSEEK_API_BASE` | 兼容 API 根路径，默认 `https://api.deepseek.com/v1`。 |
-| `DEEPSEEK_MODEL` | 模型名，默认 `deepseek-chat`。 |
-| `OPENAI_MODEL` | 未设置 `DEEPSEEK_MODEL` 时可用此变量指定模型。 |
-| `PORT` | HTTP 端口，默认 `8765`。 |
-| `MAX_CONTEXT_CHARS` | 提交给模型的上下文最大字符数，默认 `6000`（与前端截断策略一致）。 |
-
-### 扩展侧：自定义本机 API 根 URL
-
-默认请求 `http://127.0.0.1:8765`。若后端端口变更，可在扩展存储中写入 `apiBaseUrl`（无需尾部 `/`），例如在扩展调试控制台执行：
-
-```js
-browser.storage.local.set({ apiBaseUrl: "http://127.0.0.1:9000" });
-```
-
----
-
-## 扩展加载与调试
-
-1. Firefox 地址栏打开 **`about:debugging#/runtime/this-firefox`**。
-2. **临时加载附加组件** → 选择本仓库中的 **`manifest.json`**。
-3. 修改 `manifest.json`、`background.js` 或 `content.js` 后，应在调试页对该扩展点击 **「重新加载」**，再刷新目标网页。
-
-> **说明**：临时扩展在关闭 Firefox 后会失效，需重新加载。
-
----
-
-## HTTP API 约定
-
-### `POST /explain/stream`
-
-- **Request**：`Content-Type: application/json`
-
-```json
-{
-  "text": "用户划选的词句",
-  "context": "页面邻近文本（可选，前端会截断）"
-}
-```
-
-- **Response**：`Content-Type: text/event-stream`
-
-每条 SSE 事件为单行：`data: <JSON>`，例如：
-
-| JSON 字段 | 含义 |
-|-----------|------|
-| `{"chunk":"..."}` | 增量文本片段 |
-| `{"error":"..."}` | 错误信息 |
-| `{"done":true}` | 流结束 |
+| `options.html` / `options.js` | 选项设置页面：配置 API Key、模型等 |
+| `content.js` | 内容脚本：管理划选检测、浮动按钮、解释卡片 UI |
+| `background.js` | 后台脚本：直调大模型 API（OpenAI 兼容格式），解析 SSE 流 |
+| `popup.css` | Shadow DOM 样式：浮动按钮、卡片、暗色主题 |
+| `manifest.json` | Firefox MV3 扩展配置 |
+| `main.py` | （可选/遗留）FastAPI 后端，不再需要 |
 
 ---
 
 ## 常见问题
 
-| 现象 | 可能原因与处理 |
-|------|----------------|
-| 普通站点可用，**GitHub 上提示无法连接** | 页面 CSP 限制 content `fetch`。**本项目已通过 `background.js` 转发**；请确认扩展已 **重新加载** 且使用当前仓库版本。 |
-| **503** | 未配置 `DEEPSEEK_API_KEY`（或未配置兼容的 `OPENAI_API_KEY`）。 |
-| **样式未更新** | `popup.css` 在会话中可能被缓存；重新加载扩展或新开标签页后再试。 |
-| **长时间无响应** | 前端约 **120s** 超时；确认本机后端已启动且防火墙未拦截端口。 |
+| 现象 | 原因与解决 |
+|------|------------|
+| 普通站点正常，**GitHub 上提示无法连接** | CSP 限制。请确认扩展已重新加载，请求通过 background.js 转发不受 CSP 影响。 |
+| **提示"未配置 API Key"** | 未在选项页面填写 API Key。右键扩展图标 → 管理扩展 → 选项。 |
+| **测试连接失败** | 检查 API Key 是否正确、API Base URL 是否有效、网络是否正常。 |
+| **样式没有更新** | `popup.css` 可能被缓存。重新加载扩展或在新标签页中测试。 |
+| **长时间无响应（超时）** | 检查网络连接。默认超时 120 秒。 |
+| **浮动按钮不出现** | 确认选中了有效文本且选区可见；检查扩展已成功加载。 |
+| **解释内容不对** | 提示词采用 Lexical Approach，如对输出格式有特殊要求可修改 `background.js` 中的 `SYSTEM_PROMPT`。 |

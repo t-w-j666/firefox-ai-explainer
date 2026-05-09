@@ -1,11 +1,10 @@
 /**
  * AI Text Explainer — Content Script
  *
- * 流程（与后端透明对齐）：
+ * 流程：
  * 1) mouseup → window.getSelection() 取划选文本与 Range 矩形（视口坐标）
  * 2) 在 Shadow DOM 内显示「AI 解释」浮动按钮（position: fixed）
- * 3) 点击按钮 → fetch(POST /explain/stream, JSON { text, context })，Accept: text/event-stream
- * 4) 通过 runtime.connect 交给 background.js 发起 fetch + SSE 解析（绕过 GitHub 等站的 CSP）。
+ * 3) 点击按钮 → 通过 runtime.connect 交给 background.js 直调大模型 API（SSE 流式）。
  *
  * 性能：mouseup 仅调度短延迟 + rAF；不在滚动/输入事件上做重逻辑。
  * 稳定性：超时（AbortController）、网络失败、非 2xx 均有可读提示。
@@ -16,10 +15,7 @@
 
   const ext = globalThis.browser ?? globalThis.chrome;
 
-  /** 默认后端根 URL；可通过 storage.local.apiBaseUrl 覆盖（字符串，无末尾斜杠亦可） */
-  const DEFAULT_API_BASE = "http://127.0.0.1:8765";
-
-  /** 流式请求超时（毫秒）；后端未启动时会较快失败 */
+  /** 流式请求超时（毫秒） */
   const STREAM_TIMEOUT_MS = 120000;
 
   /** 划选变化去抖（毫秒），减轻拖拽选中时的频繁布局 */
@@ -100,35 +96,6 @@
   /** 当前流式请求的中止控制器（关闭浮层时 abort，避免浪费_token） */
   let streamAbortController = null;
 
-  function getApiBase() {
-    if (!ext?.storage?.local?.get) return Promise.resolve(DEFAULT_API_BASE);
-
-    try {
-      const res = ext.storage.local.get(["apiBaseUrl"]);
-      if (res && typeof res.then === "function") {
-        return res
-          .then((obj) => {
-            const v = obj?.apiBaseUrl;
-            return typeof v === "string" && v.trim() ? v.trim() : DEFAULT_API_BASE;
-          })
-          .catch(() => DEFAULT_API_BASE);
-      }
-    } catch {
-      return Promise.resolve(DEFAULT_API_BASE);
-    }
-
-    return new Promise((resolve) => {
-      ext.storage.local.get(["apiBaseUrl"], (obj) => {
-        if (ext.runtime?.lastError) {
-          resolve(DEFAULT_API_BASE);
-          return;
-        }
-        const v = obj?.apiBaseUrl;
-        resolve(typeof v === "string" && v.trim() ? v.trim() : DEFAULT_API_BASE);
-      });
-    });
-  }
-
   function loadCssIntoShadow(sr) {
     if (!cssLoadedPromise) {
       const url = ext.runtime.getURL("popup.css");
@@ -171,7 +138,7 @@
           <button type="button" class="ai-close" id="aiClose" aria-label="关闭">×</button>
         </header>
         <div class="ai-selection-preview" id="aiSelPreview"></div>
-        <div class="ai-body ai-loading" id="aiBody">连接后端并生成解释中…</div>
+        <div class="ai-body ai-loading" id="aiBody">生成解释中…</div>
         <div class="ai-error" id="aiError" hidden></div>
         <div class="ai-footer-hint">流式输出 · 拖动标题栏移动 · 点击空白关闭</div>
       </section>
@@ -364,10 +331,9 @@
   }
 
   /**
-   * 经后台脚本转发 SSE（避免 github.com 等页面的 CSP 拦截 fetch localhost）。
+   * 经后台脚本直调大模型 API（绕过页面 CSP 限制）。
    */
   function streamExplainViaBackground(
-    apiBase,
     text,
     context,
     onChunk,
@@ -431,7 +397,6 @@
       try {
         port.postMessage({
           type: "start",
-          apiBase,
           text,
           context,
           timeoutMs: STREAM_TIMEOUT_MS,
@@ -482,9 +447,7 @@
       if (cursor) cursor.remove();
     };
 
-    const apiBase = await getApiBase();
     await streamExplainViaBackground(
-      apiBase,
       payload.text,
       payload.context,
       onChunk,
