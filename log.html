@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Explainer - 日志</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 2rem 1rem;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.35rem; color: #0f172a; }
+    .subtitle { font-size: 0.8125rem; color: #64748b; margin-bottom: 1.5rem; }
+
+    /* ---- 按钮 ---- */
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .toolbar button {
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: #e2e8f0; color: #475569; }
+    .btn-secondary:hover { background: #cbd5e1; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.75rem; }
+    .last-refresh { font-size: 0.75rem; color: #94a3b8; margin-left: auto; }
+
+    /* ---- 统计卡片 ---- */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 1.5rem; font-weight: 700; line-height: 1.3; }
+    .stat-card .label { font-size: 0.6875rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+    .stat-card .num.ok { color: #16a34a; }
+    .stat-card .num.fail { color: #dc2626; }
+    .stat-card .num.timeout { color: #f59e0b; }
+    .stat-card .num.total { color: #2563eb; }
+
+    /* ---- 配置栏 ---- */
+    .config-bar {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.6rem 1rem;
+      font-size: 0.8125rem;
+      color: #475569;
+      margin-bottom: 1.25rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .config-bar strong { color: #334155; }
+    .config-bar .none { color: #94a3b8; font-style: italic; }
+
+    /* ---- 调用卡片容器 ---- */
+    .call-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* ---- 单张调用卡片 ---- */
+    .call-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .call-card.call-fail { border-color: #fca5a5; }
+    .call-card.call-timeout { border-color: #fcd34d; }
+
+    /* 卡片头部 */
+    .call-header {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.6rem 1rem;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.8125rem;
+    }
+    .call-header .call-time { color: #64748b; font-family: monospace; font-size: 0.75rem; }
+    .call-header .call-status {
+      font-weight: 600; font-size: 0.75rem;
+      padding: 0.1rem 0.5rem; border-radius: 4px;
+    }
+    .call-header .call-status.ok { background: #dcfce7; color: #16a34a; }
+    .call-header .call-status.fail { background: #fef2f2; color: #dc2626; }
+    .call-header .call-status.timeout { background: #fef9c3; color: #ca8a04; }
+    .call-header .call-model { color: #475569; margin-left: auto; }
+    .call-header .call-duration { color: #94a3b8; font-family: monospace; font-size: 0.75rem; }
+
+    /* 卡片区块 */
+    .call-section {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .call-section:last-of-type { border-bottom: none; }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.5rem;
+    }
+    .section-title .badge {
+      font-weight: 400;
+      background: #e2e8f0;
+      padding: 0.05rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      margin-left: 0.35rem;
+    }
+    .call-section .field {
+      font-size: 0.8125rem;
+      color: #334155;
+      margin-bottom: 0.35rem;
+      line-height: 1.5;
+    }
+    .call-section .field:last-child { margin-bottom: 0; }
+    .call-section .field label { color: #64748b; font-size: 0.75rem; font-weight: 600; }
+    .call-section .field code {
+      background: #f1f5f9;
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+      word-break: break-all;
+    }
+    .output-text {
+      background: #f8fafc;
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #1e293b;
+    }
+
+    /* 折叠面板 */
+    .collapsible { margin-top: 0.35rem; }
+    .collapse-trigger {
+      font-size: 0.75rem;
+      color: #2563eb;
+      cursor: pointer;
+      user-select: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .collapse-trigger:hover { color: #1d4ed8; }
+    .collapse-trigger::before {
+      content: "▶";
+      display: inline-block;
+      transition: transform 0.15s;
+      font-size: 0.6rem;
+    }
+    .collapse-trigger.expanded::before { transform: rotate(90deg); }
+    .collapse-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+      background: #f8fafc;
+      border-radius: 6px;
+      margin-top: 0.35rem;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    }
+    .collapse-body.open { max-height: 600px; overflow-y: auto; padding: 0.6rem 0.75rem; }
+
+    /* 错误诊断 */
+    .call-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .call-error .err-type {
+      font-weight: 700;
+      font-size: 0.8125rem;
+      color: #b91c1c;
+    }
+    .call-error .err-suggestion {
+      font-size: 0.75rem;
+      color: #ea580c;
+      margin-top: 0.2rem;
+    }
+    .call-error .err-detail {
+      font-size: 0.7rem;
+      color: #9ca3af;
+      margin-top: 0.25rem;
+      font-family: monospace;
+      word-break: break-word;
+    }
+
+    /* 操作按钮 */
+    .call-actions {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+    }
+    .call-actions button {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      cursor: pointer;
+      background: #fff;
+      color: #475569;
+      transition: all 0.12s;
+    }
+    .call-actions button:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .call-actions button:active { background: #e2e8f0; }
+    .call-actions button .key-hint {
+      color: #94a3b8;
+      font-weight: 400;
+      font-size: 0.65rem;
+    }
+
+    /* 空状态 */
+    .call-empty {
+      padding: 3rem 2rem;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.875rem;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .call-empty .big-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+
+    /* 筛选 */
+    .filter-row {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .filter-tag {
+      padding: 0.2rem 0.6rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+      font-size: 0.6875rem;
+      cursor: pointer;
+      background: #fff;
+      color: #64748b;
+      transition: all 0.12s;
+      user-select: none;
+    }
+    .filter-tag:hover { border-color: #94a3b8; }
+    .filter-tag.active {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+    .filter-tag.active-fail.active {
+      background: #dc2626; border-color: #dc2626; color: #fff;
+    }
+    .filter-tag.active-success.active {
+      background: #16a34a; border-color: #16a34a; color: #fff;
+    }
+    .filter-tag.active-timeout.active {
+      background: #f59e0b; border-color: #f59e0b; color: #fff;
+    }
+
+    @media (max-width: 480px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .call-header { flex-wrap: wrap; }
+      .call-header .call-model { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h1>AI Text Explainer — 日志</h1>
+  <p class="subtitle">API 调用记录与输入/输出详情</p>
+
+  <!-- 统计卡片 -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="num total" id="statTotal">0</div><div class="label">总调用</div></div>
+    <div class="stat-card"><div class="num ok" id="statSuccess">0</div><div class="label">成功</div></div>
+    <div class="stat-card"><div class="num fail" id="statFail">0</div><div class="label">失败</div></div>
+    <div class="stat-card"><div class="num timeout" id="statTimeout">0</div><div class="label">超时</div></div>
+  </div>
+
+  <!-- 活跃配置 -->
+  <div class="config-bar" id="configBar">
+    <span><strong>配置方案：</strong><span id="cfgName" class="none">加载中…</span></span>
+    <span><strong>模型：</strong><span id="cfgModel" class="none">—</span></span>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="toolbar">
+    <button class="btn-primary" id="refreshBtn">刷新</button>
+    <button class="btn-danger btn-sm" id="clearBtn">清空记录</button>
+    <button class="btn-secondary btn-sm" id="backBtn">← 返回设置</button>
+    <span class="last-refresh" id="refreshTime"></span>
+  </div>
+
+  <!-- 筛选 -->
+  <div class="filter-row" id="filterRow">
+    <span class="filter-tag active" data-filter="all">全部</span>
+    <span class="filter-tag" data-filter="success">成功</span>
+    <span class="filter-tag" data-filter="fail">失败</span>
+    <span class="filter-tag" data-filter="timeout">超时</span>
+  </div>
+
+  <!-- 调用卡片列表 -->
+  <div id="callList">
+    <div class="call-empty">正在加载…</div>
+  </div>
+
+  <script src="log.js"></script>
+</body>
+</html>

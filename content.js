@@ -5,23 +5,25 @@
  * 1) mouseup → window.getSelection() 取划选文本与 Range 矩形（视口坐标）
  * 2) 在 Shadow DOM 内显示「AI 解释」浮动按钮（position: fixed）
  * 3) 点击按钮 → 通过 runtime.connect 交给 background.js 直调大模型 API（SSE 流式）。
- *
- * 性能：mouseup 仅调度短延迟 + rAF；不在滚动/输入事件上做重逻辑。
- * 稳定性：超时（AbortController）、网络失败、非 2xx 均有可读提示。
  */
 
 (() => {
   "use strict";
 
+  /* ===================================================================
+   * 日志工具
+   * =================================================================== */
+  const log = {
+    debug: (...args) => console.debug("[AI Explainer:Content]", ...args),
+    info: (...args) => console.info("[AI Explainer:Content]", ...args),
+    warn: (...args) => console.warn("[AI Explainer:Content]", ...args),
+    error: (...args) => console.error("[AI Explainer:Content]", ...args),
+  };
+
   const ext = globalThis.browser ?? globalThis.chrome;
 
-  /** 流式请求超时（毫秒） */
   const STREAM_TIMEOUT_MS = 120000;
-
-  /** 划选变化去抖（毫秒），减轻拖拽选中时的频繁布局 */
   const SELECTION_DEBOUNCE_MS = 48;
-
-  /** 提交给后端的上下文最大字符数（与 main.py 默认协调） */
   const MAX_CONTEXT_CHARS = 6000;
 
   let shadowHost = null;
@@ -30,7 +32,7 @@
   let cssLoadedPromise = null;
 
   /**
-   * 拖动解释卡片：仅在标题栏按下左键拖动（关闭按钮除外），用 window 级监听避免滑出 Shadow DOM 后丢事件。
+   * 拖动解释卡片。
    */
   function wireCardDrag(card, header) {
     let dragging = false;
@@ -93,7 +95,7 @@
   /** @type {{ text: string; context: string; rect: DOMRect } | null} */
   let pendingExplain = null;
 
-  /** 当前流式请求的中止控制器（关闭浮层时 abort，避免浪费_token） */
+  /** 当前流式请求的中止控制器 */
   let streamAbortController = null;
 
   function loadCssIntoShadow(sr) {
@@ -110,7 +112,7 @@
           sr.appendChild(style);
         })
         .catch((e) => {
-          console.error("[AI Explainer]", e);
+          log.error("加载 popup.css 失败，使用备用样式", e);
           const style = document.createElement("style");
           style.textContent =
             ":host{font-family:system-ui,sans-serif}.ai-card{padding:12px;background:#fff;color:#111}";
@@ -122,10 +124,12 @@
 
   function ensureUi() {
     if (shadowHost && shadowRoot) return shadowRoot;
+
     shadowHost = document.createElement("div");
     shadowHost.id = "ai-text-explainer-extension-root";
     shadowRoot = shadowHost.attachShadow({ mode: "open" });
     document.documentElement.appendChild(shadowHost);
+    log.debug("Shadow DOM 已创建");
 
     const root = document.createElement("div");
     root.className = "ai-root";
@@ -157,6 +161,7 @@
       ev.preventDefault();
       ev.stopPropagation();
       if (!pendingExplain?.text) return;
+      log.info("用户点击 AI 解释按钮", { text: pendingExplain.text.slice(0, 60) });
       const payload = { ...pendingExplain };
       openPanel(payload);
       void runStream(payload);
@@ -173,19 +178,16 @@
 
     closeBtn.addEventListener("click", (ev) => {
       ev.preventDefault();
+      log.debug("用户关闭解释面板");
       closePanel();
     });
 
     overlay.addEventListener("click", () => closePanel());
-
     card.addEventListener("click", (ev) => ev.stopPropagation());
 
     return shadowRoot;
   }
 
-  /**
-   * 获取划选周围的可见文本作为 context（块级祖先 innerText，围绕选中片段截取）。
-   */
   function getContextAroundSelection(sel, selectedText, maxLen) {
     if (!sel.rangeCount) return "";
     const range = sel.getRangeAt(0);
@@ -234,7 +236,6 @@
     const bw = fab.offsetWidth || 88;
     const bh = fab.offsetHeight || 32;
 
-    /* position:fixed → 视口坐标，勿加 scrollX/Y */
     let vx = rect.left + pad;
     let vy = rect.bottom + pad;
     if (vx + bw > vw - 8) vx = Math.max(8, vw - bw - 8);
@@ -277,7 +278,7 @@
     }, SELECTION_DEBOUNCE_MS);
   }
 
-  /** 滚动或缩放时隐藏按钮，避免错位；不重算布局以省开销 */
+  /** 滚动或缩放时隐藏按钮 */
   function onViewportChange() {
     const sr = shadowRoot;
     if (sr) hideFab(sr);
@@ -331,7 +332,7 @@
   }
 
   /**
-   * 经后台脚本直调大模型 API（绕过页面 CSP 限制）。
+   * 经后台脚本直调大模型 API。
    */
   function streamExplainViaBackground(
     text,
@@ -355,7 +356,7 @@
         try {
           port?.disconnect();
         } catch {
-          /* ignore */
+          /* 端口可能已关闭 */
         }
         finish();
       };
@@ -369,6 +370,7 @@
       try {
         port = ext.runtime.connect({ name: "ai-explainer-sse" });
       } catch (e) {
+        log.error("runtime.connect 失败", e);
         onError("无法连接扩展后台，请在 about:debugging 中重新加载本扩展。");
         finish();
         return;
@@ -377,13 +379,16 @@
       port.onMessage.addListener(function onMsg(msg) {
         if (!msg || typeof msg !== "object") return;
         if (msg.type === "chunk" && msg.text) onChunk(String(msg.text));
-        if (msg.type === "error" && msg.message) onError(String(msg.message));
+        if (msg.type === "error" && msg.message) {
+          log.error("后台返回错误", msg.message);
+          onError(String(msg.message));
+        }
         if (msg.type === "done") {
           port.onMessage.removeListener(onMsg);
           try {
             port.disconnect();
           } catch {
-            /* ignore */
+            /* 可能已断开 */
           }
           finish();
         }
@@ -401,12 +406,13 @@
           context,
           timeoutMs: STREAM_TIMEOUT_MS,
         });
-      } catch {
+      } catch (e) {
+        log.error("port.postMessage 失败", e);
         onError("无法连接扩展后台，请在 about:debugging 中重新加载本扩展。");
         try {
           port.disconnect();
         } catch {
-          /* ignore */
+          /* 可能已断开 */
         }
         finish();
       }
@@ -461,12 +467,33 @@
     if (cursor) cursor.remove();
   }
 
+  function cleanup() {
+    log.info("页面卸载，清理 content script 资源");
+    streamAbortController?.abort();
+    streamAbortController = null;
+
+    if (shadowHost && shadowHost.parentNode) {
+      shadowHost.parentNode.removeChild(shadowHost);
+    }
+    shadowHost = null;
+    shadowRoot = null;
+    cssLoadedPromise = null;
+    pendingExplain = null;
+
+    window.clearTimeout(debounceTimer);
+
+    document.removeEventListener("mouseup", onMouseUp, true);
+    window.removeEventListener("scroll", onViewportChange, true);
+    window.removeEventListener("resize", onViewportChange);
+  }
+
   async function init() {
+    log.info("初始化 content script");
+
     ensureUi();
     await loadCssIntoShadow(shadowRoot);
 
     document.addEventListener("mouseup", onMouseUp, { passive: true });
-    /* 键盘 Shift+方向键 选区结束时同步按钮位置（去抖，避免 selectionchange 风暴） */
     document.addEventListener(
       "keyup",
       () => {
@@ -482,6 +509,12 @@
       capture: true,
     });
     window.addEventListener("resize", onViewportChange, { passive: true });
+
+    // 页面卸载时清理资源
+    window.addEventListener("beforeunload", cleanup);
+    window.addEventListener("pagehide", cleanup);
+
+    log.info("content script 就绪");
   }
 
   void init();

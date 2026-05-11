@@ -108,11 +108,73 @@
       cursor: pointer;
     }
     .footer a:hover { color: #2563eb; text-decoration: underline; }
+    .footer-sep { color: #cbd5e1; font-size: 0.75rem; margin: 0 0.35rem; }
     .model-hint {
       font-size: 0.6875rem;
       color: #94a3b8;
       margin-top: -0.35rem;
       margin-bottom: 0.5rem;
+    }
+    /* ---- 配置方案选择器 ---- */
+    .profile-row {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .profile-select {
+      flex: 1;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.8125rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      color: #1e293b;
+      outline: none;
+      cursor: pointer;
+      min-width: 0;
+      appearance: auto;
+    }
+    .profile-select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.12);
+    }
+    .btn-icon {
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      color: #64748b;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      padding: 0;
+      line-height: 1;
+      user-select: none;
+    }
+    .btn-icon:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #1e293b;
+    }
+    .btn-icon.btn-icon-danger:hover {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #dc2626;
+    }
+    .btn-icon:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .btn-icon:disabled:hover {
+      background: #fff;
+      border-color: #e2e8f0;
+      color: #64748b;
     }
   </style>
 </head>
@@ -124,28 +186,66 @@
 
   <div class="body">
     <div class="field">
+      <label>模型配置方案（点击+号添加配置）</label>
+      <div class="profile-row">
+        <select id="profileSelect" class="profile-select"></select>
+        <button id="newProfileBtn" class="btn-icon" title="新建配置方案">+</button>
+        <button id="deleteProfileBtn" class="btn-icon btn-icon-danger" title="删除当前方案">🗑</button>
+        <button id="resetProfileBtn" class="btn-icon" title="清空当前方案">↺</button>
+      </div>
+    </div>
+
+    <div class="field" id="profileNameField" style="display:none">
+      <label>方案名称</label>
+      <input type="text" id="profileName" placeholder="例：DeepSeek V3、OpenAI GPT-4o" maxlength="30" />
+    </div>
+
+    <div class="field">
       <label>API Key</label>
-      <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" />
+      <input type="password" id="apiKey" placeholder="例：sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
     </div>
     <div class="field">
       <label>API Base URL</label>
-      <input type="url" id="apiBaseUrl" placeholder="https://api.deepseek.com" />
+      <input type="url" id="apiBaseUrl" placeholder="例：https://api.deepseek.com" />
     </div>
     <div class="field">
       <label>模型名称</label>
-      <input type="text" id="modelName" placeholder="deepseek-chat" />
+      <input type="text" id="modelName" placeholder="例：DeepSeek V3、OpenAI GPT-4o" />
     </div>
     <div class="model-hint" id="modelHint"></div>
-
-    <div class="status-msg" id="statusMsg"></div>
 
     <div class="actions">
       <button class="btn-primary" id="saveBtn">保存</button>
       <button class="btn-secondary" id="testBtn">测试</button>
     </div>
+
+    <div class="field" style="margin-top: 0.3rem;">
+      <label>系统提示词方案</label>
+      <div class="profile-row">
+        <select id="promptProfileSelect" class="profile-select"></select>
+        <button id="newPromptProfileBtn" class="btn-icon" title="新建提示词方案">+</button>
+        <button id="deletePromptProfileBtn" class="btn-icon btn-icon-danger" title="删除当前提示词方案">🗑</button>
+        <button id="resetPromptProfileBtn" class="btn-icon" title="清空当前提示词">↺</button>
+        <button id="savePromptProfileBtn" class="btn-icon" title="保存提示词方案">✓</button>
+      </div>
+    </div>
+    <div class="field" id="promptProfileNameField" style="display:none">
+      <label>方案名称</label>
+      <input type="text" id="promptProfileName" placeholder="例如：默认、简洁、学术风格" maxlength="30" />
+    </div>
+    <div class="field">
+      <label>系统提示词</label>
+      <textarea id="systemPrompt" rows="4" placeholder="输入系统提示词..."
+        style="width:100%; padding:0.45rem 0.6rem; font-size:0.8125rem; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#1e293b; outline:none; resize:vertical; font-family:inherit; line-height:1.5;">
+      </textarea>
+    </div>
+
+    <div class="status-msg" id="statusMsg"></div>
   </div>
 
   <div class="footer">
+    <a id="openLog">日志</a>
+    <span class="footer-sep">·</span>
     <a id="openOptions">打开完整设置 →</a>
   </div>
 

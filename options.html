@@ -131,19 +131,20 @@
 
   <div class="field">
     <label for="apiBaseUrl">API Base URL</label>
-    <div class="hint">兼容 OpenAI 的 API 地址，末尾不要加 /v1</div>
-    <input type="url" id="apiBaseUrl" placeholder="https://api.deepseek.com" value="https://api.deepseek.com" />
+    <div class="hint">兼容 OpenAI 的 API 地址。OpenAI 需包含 /v1，DeepSeek 不需要</div>
+    <input type="url" id="apiBaseUrl" placeholder="例：https://api.deepseek.com 或 https://api.openai.com/v1" />
   </div>
 
   <div class="field">
     <label for="modelName">模型名称</label>
     <div class="hint">使用的模型标识符</div>
-    <input type="text" id="modelName" placeholder="deepseek-chat" value="deepseek-chat" />
+    <input type="text" id="modelName" placeholder="例：deepseek-chat 或 gpt-4o" />
   </div>
 
   <div class="actions">
     <button class="btn-primary" id="saveBtn">保存</button>
     <button id="testBtn" style="background:#e2e8f0;color:#475569;">测试连接</button>
+    <button id="resetBtn" style="background:#fef2f2;color:#dc2626;margin-left:auto;">清空</button>
     <span class="status" id="statusMsg">✓ 已保存</span>
   </div>
 
