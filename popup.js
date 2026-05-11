@@ -518,7 +518,7 @@
           model: modelName,
           messages: [{ role: "user", content: "回复ok" }],
           stream: false,
-          max_tokens: 20,
+          max_tokens: 512,
         }),
       });
 
@@ -545,14 +545,15 @@
         $("statusDot").className = "status-dot fail";
         return;
       }
-      if (!data.choices || !data.choices[0]?.message?.content) {
-        showMsg("✗ API 响应中缺少 choices 字段", true);
+      const choice = data.choices?.[0];
+      const reply = choice?.message?.content || choice?.message?.reasoning_content || "";
+      if (!choice || !reply) {
+        showMsg("✗ API 响应中无有效内容（content 与 reasoning_content 均为空），请检查模型配置", true);
         $("statusDot").className = "status-dot fail";
         return;
       }
 
-      log.info("测试连接成功", { apiBaseUrl, modelName, reply: data.choices[0].message.content });
-      const reply = data.choices[0].message.content;
+      log.info("测试连接成功", { apiBaseUrl, modelName, reply });
       showMsg(`✓ 连接成功 — ${reply.slice(0, 60)}`, false);
       $("statusDot").className = "status-dot ok";
     } catch (err) {

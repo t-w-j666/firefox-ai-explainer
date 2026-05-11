@@ -188,7 +188,7 @@
             },
           ],
           stream: false,
-          max_tokens: 20,
+          max_tokens: 512,
         }),
       });
 
@@ -207,12 +207,13 @@
         showTestResult(`✗ API 错误：${msg.slice(0, 500)}`, true);
         return;
       }
-      if (!data.choices || !data.choices[0]?.message?.content) {
-        showTestResult("✗ API 响应中缺少 choices 字段：\n" + JSON.stringify(data, null, 2).slice(0, 500), true);
+      const choice = data.choices?.[0];
+      const reply = choice?.message?.content || choice?.message?.reasoning_content || "";
+      if (!choice || !reply) {
+        showTestResult("✗ API 响应中无有效内容（content 与 reasoning_content 均为空），请检查模型配置：\n" + JSON.stringify(data, null, 2).slice(0, 500), true);
         return;
       }
-      const reply = data.choices[0].message.content;
-      showTestResult(`✓ 连接成功 — ${reply}`, false);
+      showTestResult(`✓ 连接成功 — ${reply.slice(0, 200)}`, false);
     } catch (err) {
       // 区分 JSON 解析失败与其他网络错误
       if (err instanceof SyntaxError) {

@@ -395,19 +395,21 @@ browserApi.runtime.onConnect.addListener((port) => {
               }
               rawResponseLines.push(raw);
               const delta = obj?.choices?.[0]?.delta;
-              if (delta?.content) {
+              const textDelta = delta?.content || delta?.reasoning_content || "";
+              if (textDelta) {
                 chunkCount++;
-                fullOutputText += String(delta.content);
-                safePost(port, { type: "chunk", text: String(delta.content) });
+                fullOutputText += textDelta;
+                safePost(port, { type: "chunk", text: textDelta });
               }
-              if (obj?.choices?.[0]?.finish_reason === "stop") {
+              const finishReason = obj?.choices?.[0]?.finish_reason;
+              if (finishReason === "stop" || finishReason === "length") {
                 const elapsed = performance.now() - startTime;
                 callRecord.process.durationMs = Math.round(elapsed);
                 callRecord.process.chunkCount = chunkCount;
                 callRecord.output.fullText = fullOutputText;
                 callRecord.output.rawResponse = rawResponseLines.join("\n");
                 callRecord.success = true;
-                log.debug("SSE finish_reason=stop", { chunks: chunkCount, duration: elapsed.toFixed(0) + "ms" });
+                log.debug("SSE finish", { reason: finishReason, chunks: chunkCount, duration: elapsed.toFixed(0) + "ms" });
                 await recordApiCall(true, elapsed);
                 pushCallRecord(callRecord);
                 safePost(port, { type: "done" });
